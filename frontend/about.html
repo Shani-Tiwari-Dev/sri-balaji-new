@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>About — Sri Balaji Granites & Marbles</title>
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  .about-wrap { max-width: 720px; margin: 0 auto; padding: 60px 28px 90px; }
+  .about-wrap h1 { font-family: var(--font-display); font-size: 30px; margin-bottom: 6px; }
+  .about-wrap .lede { color: var(--ink-soft); margin-bottom: 40px; font-size: 15px; }
+  .about-wrap p { margin-bottom: 18px; }
+  .facility-list { list-style: none; margin: 30px 0; padding: 0; border-top: 1px solid var(--line); }
+  .facility-list li { border-bottom: 1px solid var(--line); padding: 16px 0; display: flex; justify-content: space-between; gap: 16px; }
+  .facility-list .name { font-weight: 600; }
+  .facility-list .role { color: var(--ink-soft); font-size: 13px; text-align: right; }
+  .contact-block { background: var(--surface); padding: 22px; margin-top: 30px; font-size: 13.5px; }
+  .contact-block div { margin-bottom: 8px; }
+  .contact-block .mono { color: var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="/" class="brand" aria-label="Sri Balaji Granites & Marbles — home">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 2 L22 20 H2 Z" stroke="#0a0a0a" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M12 9 L17 20 H7 Z" fill="#0a0a0a"/>
+    </svg>
+    <span class="brand-word">Sri Balaji Granites</span>
+  </a>
+  <nav class="main-nav">
+    <a href="/">Catalog</a>
+    <a href="/about.html" class="active">About</a>
+    <a href="/staff" class="icon-btn" aria-label="Staff login">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="1.6"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.4-3.8 4.2-5.8 7.5-5.8s6.1 2 7.5 5.8"/></svg>
+    </a>
+  </nav>
+</header>
+
+<main class="about-wrap">
+  <h1>Sri Balaji Granites & Marbles</h1>
+  <p class="lede">We Have Granite &amp; Marble, Black Stone, Wall Tiles, Floor Tiles &amp; Marble Sinks Available.</p>
+
+  <p>For three decades of yard work compressed into a simple idea: source, cut and hold enough natural stone across three facilities that whatever a builder, architect, or homeowner needs is already in stock somewhere in our network. Italian marble, Indian marble, granite, quartz, onyx and sandstone move through our Bangalore yard, our Chittoor processing factory, and our Vishakapatnam export counter every week.</p>
+
+  <p>Browse the live catalog to see what's on the floor right now, in every finish we cut — polished, honed, leathered, flamed and lappato — with block-level detail down to the exact slab you'll receive.</p>
+
+  <ul class="facility-list">
+    <li><span class="name">Bangalore Yard</span><span class="role">Main display yard &amp; sales office<br>Primary walk-in / dispatch point</span></li>
+    <li><span class="name">Chittoor Factory</span><span class="role">Cutting &amp; processing facility<br>Source of finished slabs</span></li>
+    <li><span class="name">Vishakapatnam Export</span><span class="role">Export yard &amp; shipments<br>Handles export-bound stock</span></li>
+  </ul>
+
+  <div class="contact-block">
+    <div><strong>Registered / Yard Address</strong><br>Site No. 17, 18 &amp; 19, Sir M. Vishveshwaraiah Extension, Southern side of CSI Hospital, Bengaluru Rural District – 562114</div>
+    <div><strong>Factory</strong><br>Sri Balaji Granites &amp; Factory, Chittoor</div>
+    <div><strong>Export Counter</strong><br>Suguna Export, Vishakapatnam</div>
+    <div class="mono">Call: +91 98284 00811 · +91 99827 49180</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <span>&copy; <span id="year"></span> Sri Balaji Granites & Marbles</span>
+  <div class="locations">
+    <span>Bangalore Yard</span>
+    <span>Chittoor Factory</span>
+    <span>Vishakapatnam Export</span>
+  </div>
+</footer>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

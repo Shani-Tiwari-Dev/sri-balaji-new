@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Staff Portal — Sri Balaji Granites & Marbles</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ============================== LOGIN ============================== -->
+<div class="staff-shell" id="loginShell">
+  <div class="staff-side">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M12 2 L22 20 H2 Z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M12 9 L17 20 H7 Z" fill="#fff"/>
+      </svg>
+      <span class="brand-word">Sri Balaji Granites</span>
+    </div>
+    <div class="yard-status">
+      <div class="row"><span><span class="dot"></span>Bangalore Yard</span><span class="mono">CONNECTED</span></div>
+      <div class="row"><span><span class="dot"></span>Chittoor Factory</span><span class="mono">CONNECTED</span></div>
+      <div class="row"><span><span class="dot"></span>Vishakapatnam Export</span><span class="mono">CONNECTED</span></div>
+    </div>
+  </div>
+  <div class="staff-form-side">
+    <form class="staff-form" id="loginForm">
+      <h1>Staff Sign In</h1>
+      <p class="lede">Enter your yard username and password to open the ERP dashboard.</p>
+      <div class="staff-error" id="loginError"></div>
+      <div class="field"><label for="loginUser">Username</label><input id="loginUser" autocomplete="username" required /></div>
+      <div class="field"><label for="loginPass">Password</label><input id="loginPass" type="password" autocomplete="current-password" required /></div>
+      <button class="btn btn-block" type="submit" id="loginSubmit">Sign In</button>
+      <a href="/" class="back-link">&larr; Back to public catalog</a>
+    </form>
+  </div>
+</div>
+
+<!-- ============================== ERP APP ============================== -->
+<div class="staff-app" id="staffApp">
+  <div class="staff-topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M12 2 L22 20 H2 Z" stroke="#0a0a0a" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 9 L17 20 H7 Z" fill="#0a0a0a"/></svg>
+      <span class="brand-word">Staff ERP</span>
+    </div>
+    <div class="who">
+      <span class="role-pill" id="roleLabel"></span>
+      <span id="userLabel"></span>
+      <a href="/" class="btn btn-ghost btn-sm">View Catalog</a>
+      <button class="btn btn-outline btn-sm" id="logoutBtn">Log Out</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="stock">Godowns / Stock</button>
+    <button class="tab-btn" data-tab="calculator">Calculator</button>
+    <button class="tab-btn" data-tab="queries">Queries</button>
+    <button class="tab-btn" data-tab="trash">Trash Bin</button>
+    <button class="tab-btn" data-tab="reports">Reports</button>
+    <button class="tab-btn" data-tab="announcements">Announcements</button>
+  </div>
+
+  <!-- ---------------- Stock ---------------- -->
+  <section class="tab-panel active" id="panel-stock">
+    <div class="kpi-row" id="stockKpis"></div>
+    <div class="toolbar">
+      <input class="search-input grow" id="stockSearch" placeholder="Search stock…" />
+      <select class="select-field" id="stockGodownFilter"><option value="all">All Yards</option></select>
+      <select class="select-field" id="stockCategoryFilter"><option value="all">All Categories</option></select>
+      <button class="btn" id="addSlabBtn">+ Add Slab</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th></th><th>Title</th><th>Category</th><th>Yard</th><th>Area</th><th>Rate/sqft</th><th>Status</th><th></th></tr></thead>
+        <tbody id="stockTableBody"><tr class="empty-row"><td colspan="8">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ---------------- Calculator ---------------- -->
+  <section class="tab-panel" id="panel-calculator">
+    <div class="calc-panel">
+      <form id="calcForm">
+        <div class="form-grid">
+          <div class="field"><label for="calcLength">Length</label><input id="calcLength" type="number" step="0.01" required /></div>
+          <div class="field"><label for="calcWidth">Width</label><input id="calcWidth" type="number" step="0.01" required /></div>
+          <div class="field"><label for="calcUnit">Unit</label>
+            <select id="calcUnit"><option value="feet">Feet</option><option value="meters">Meters</option><option value="centimeters">Centimeters</option><option value="inches">Inches</option></select>
+          </div>
+          <div class="field"><label for="calcPieces">Pieces</label><input id="calcPieces" type="number" min="1" value="1" /></div>
+          <div class="field full"><label for="calcRate">Rate per Sq.Ft (optional)</label><input id="calcRate" type="number" step="0.01" /></div>
+        </div>
+        <button class="btn" type="submit" style="margin-top:14px;">Calculate</button>
+      </form>
+      <div class="calc-result" id="calcResult">
+        <p style="color:var(--ink-soft);font-size:13px;">Enter dimensions to see area &amp; rate conversions.</p>
+      </div>
+    </div>
+    <button class="btn btn-outline" id="calcQuickAdd" style="margin-top:20px;display:none;">Quick Add to Stock</button>
+  </section>
+
+  <!-- ---------------- Queries ---------------- -->
+  <section class="tab-panel" id="panel-queries">
+    <div class="toolbar">
+      <select class="select-field" id="queryStatusFilter">
+        <option value="all">All Statuses</option>
+        <option>Pending</option><option>Contacted</option><option>Quoted</option><option>Closed</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Order</th><th>Client</th><th>Mobile</th><th>Requirement</th><th>Yard</th><th>Status</th><th></th></tr></thead>
+        <tbody id="queriesTableBody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ---------------- Trash ---------------- -->
+  <section class="tab-panel" id="panel-trash">
+    <p style="color:var(--ink-soft);font-size:12.5px;margin-bottom:14px;">Deleted slabs are kept for 7 days before permanent removal.</p>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th></th><th>Title</th><th>Yard</th><th>Deleted By</th><th>Days Left</th><th></th></tr></thead>
+        <tbody id="trashTableBody"><tr class="empty-row"><td colspan="5">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ---------------- Reports ---------------- -->
+  <section class="tab-panel" id="panel-reports">
+    <div class="kpi-row" id="reportKpis"></div>
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table class="data-table">
+        <thead><tr><th>Category</th><th>Count</th><th>Sq.Ft</th><th>Value</th></tr></thead>
+        <tbody id="reportCategoryBody"></tbody>
+      </table>
+    </div>
+    <button class="btn" id="exportCsvBtn">Export Stock CSV</button>
+  </section>
+
+  <!-- ---------------- Announcements ---------------- -->
+  <section class="tab-panel" id="panel-announcements">
+    <div class="toolbar"><button class="btn" id="addAnnBtn">+ New Announcement</button></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Title</th><th>Type</th><th>Message</th><th>Active</th><th></th></tr></thead>
+        <tbody id="annTableBody"><tr class="empty-row"><td colspan="5">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ---------------- Slab add/edit modal form ---------------- -->
+<div class="modal-form-overlay" id="slabFormOverlay">
+  <form class="modal-form" id="slabForm">
+    <h3 id="slabFormTitle">Add Slab</h3>
+    <div class="form-grid">
+      <div class="field full"><label for="sfTitle">Title</label><input id="sfTitle" required /></div>
+      <div class="field"><label for="sfCategory">Category</label><select id="sfCategory" required></select></div>
+      <div class="field"><label for="sfGodown">Yard</label><select id="sfGodown" required></select></div>
+      <div class="field"><label for="sfBlock">Block #</label><input id="sfBlock" /></div>
+      <div class="field"><label for="sfFinish">Finish</label>
+        <select id="sfFinish"><option>Polished</option><option>Honed</option><option>Leathered</option><option>Flamed</option><option>Lappato</option></select>
+      </div>
+      <div class="field"><label for="sfLength">Length</label><input id="sfLength" type="number" step="0.01" required /></div>
+      <div class="field"><label for="sfWidth">Width</label><input id="sfWidth" type="number" step="0.01" required /></div>
+      <div class="field"><label for="sfUnit">Unit</label>
+        <select id="sfUnit"><option value="feet">Feet</option><option value="meters">Meters</option><option value="centimeters">Centimeters</option><option value="inches">Inches</option></select>
+      </div>
+      <div class="field"><label for="sfPieces">Pieces</label><input id="sfPieces" type="number" min="1" value="1" /></div>
+      <div class="field"><label for="sfThickness">Thickness (mm)</label><input id="sfThickness" type="number" /></div>
+      <div class="field"><label for="sfRate">Rate / Sq.Ft (₹)</label><input id="sfRate" type="number" step="0.01" required /></div>
+      <div class="field full">
+        <label for="sfImageFile">Slab Image</label>
+        <input id="sfImageFile" type="file" accept="image/*" />
+        <img id="sfImagePreview" alt="" style="display:none;margin-top:8px;width:120px;height:90px;object-fit:cover;border-radius:6px;" />
+      </div>
+      <div class="field full"><label for="sfImage">Image URL (optional, used if no image is uploaded)</label><input id="sfImage" placeholder="https://…" /></div>
+      <div class="field full"><label><input type="checkbox" id="sfSold" style="width:auto;display:inline-block;margin-right:6px;" /> Mark as Sold</label></div>
+    </div>
+    <div class="modal-form-actions">
+      <button type="button" class="btn btn-outline" id="slabFormCancel">Cancel</button>
+      <button type="submit" class="btn" id="slabFormSubmit">Save Slab</button>
+    </div>
+  </form>
+</div>
+
+<!-- ---------------- Announcement add/edit modal form ---------------- -->
+<div class="modal-form-overlay" id="annFormOverlay">
+  <form class="modal-form" id="annForm">
+    <h3>New Announcement</h3>
+    <div class="form-grid">
+      <div class="field full"><label for="afTitle">Title</label><input id="afTitle" required /></div>
+      <div class="field"><label for="afType">Type</label><select id="afType"><option value="general">General</option><option value="offer">Offer</option><option value="arrival">Arrival</option></select></div>
+      <div class="field"><label><input type="checkbox" id="afActive" checked style="width:auto;display:inline-block;margin-right:6px;" /> Active</label></div>
+      <div class="field full"><label for="afMessage">Message</label><textarea id="afMessage" required></textarea></div>
+    </div>
+    <div class="modal-form-actions">
+      <button type="button" class="btn btn-outline" id="annFormCancel">Cancel</button>
+      <button type="submit" class="btn">Publish</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/api.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

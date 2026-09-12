@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sri Balaji Granites & Marbles — Stone Catalog</title>
+<meta name="description" content="Browse granite, marble, quartz, onyx and sandstone slabs from Sri Balaji Granites & Marbles — Bangalore, Chittoor & Vishakapatnam." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <a href="/" class="brand" aria-label="Sri Balaji Granites & Marbles — home">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 2 L22 20 H2 Z" stroke="#0a0a0a" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M12 9 L17 20 H7 Z" fill="#0a0a0a"/>
+    </svg>
+    <span class="brand-word">Sri Balaji Granites</span>
+    <span class="brand-sub">Bangalore · Chittoor · Vishakapatnam</span>
+  </a>
+  <nav class="main-nav">
+    <a href="/" class="active">Catalog</a>
+    <a href="/about.html">About</a>
+    <button class="icon-btn" id="cartBtn" aria-label="Open enquiry cart">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="1.6"><path d="M3 4h2l2.4 12.4A2 2 0 0 0 9.36 18h7.28a2 2 0 0 0 1.96-1.6L20 8H6"/><circle cx="9.5" cy="21" r="1.2" fill="#0a0a0a"/><circle cx="17" cy="21" r="1.2" fill="#0a0a0a"/></svg>
+      <span class="cart-badge" id="cartBadge" hidden>0</span>
+    </button>
+  </nav>
+</header>
+
+<div class="ticker" id="ticker" hidden>
+  <div class="ticker__track" id="tickerTrack"></div>
+</div>
+
+<section class="filter-bar" aria-label="Filter stock">
+  <input type="search" class="search-input" id="searchInput" placeholder="Search by name, block or lot…" />
+  <select class="select-field" id="godownFilter">
+    <option value="all">All Yards</option>
+  </select>
+  <label class="toggle-field">
+    <input type="checkbox" id="inStockOnly" checked /> In-stock only
+  </label>
+</section>
+<div class="chip-row" style="max-width:1400px;margin:0 auto;padding:0 28px 6px;" id="categoryChips">
+  <button class="chip active" data-category="all">All</button>
+</div>
+
+<main class="masonry" id="grid" aria-live="polite"></main>
+
+<footer class="site-footer">
+  <span>&copy; <span id="year"></span> Sri Balaji Granites & Marbles</span>
+  <div class="locations">
+    <span>Bangalore Yard</span>
+    <span>Chittoor Factory</span>
+    <span>Vishakapatnam Export</span>
+  </div>
+</footer>
+
+<!-- Slab detail modal -->
+<div class="overlay" id="slabOverlay">
+  <div class="modal-wrap">
+    <button class="modal-close" id="closeModal" aria-label="Close">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0a0a0a" stroke-width="1.8"><path d="M5 5l14 14M19 5L5 19"/></svg>
+    </button>
+    <div class="modal" id="modalContent"></div>
+  </div>
+</div>
+
+<!-- Enquiry cart drawer -->
+<div class="drawer-overlay" id="drawerOverlay">
+  <aside class="drawer">
+    <div class="drawer-head">
+      <h2 id="drawerTitle">Enquiry Cart</h2>
+      <button class="icon-btn" id="closeDrawer" aria-label="Close cart">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#0a0a0a" stroke-width="1.8"><path d="M5 5l14 14M19 5L5 19"/></svg>
+      </button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+    <div class="drawer-foot" id="drawerFoot"></div>
+  </aside>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/api.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/catalog.js"></script>
+</body>
+</html>
