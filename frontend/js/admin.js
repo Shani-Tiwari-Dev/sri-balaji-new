@@ -394,11 +394,11 @@
 
   async function loadTrash() {
     const tbody = $("#trashTableBody");
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Loading…</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Loading…</td></tr>`;
     try {
       const items = await api.getTrash();
       if (!items.length) {
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Trash is empty.</td></tr>`;
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Trash is empty.</td></tr>`;
         return;
       }
       tbody.innerHTML = items.map((t) => `
@@ -421,7 +421,7 @@
         try { await api.purgeTrash(b.dataset.purge); showToast("Deleted permanently"); loadTrash(); } catch (e) { showToast(e.message); }
       }));
     } catch (e) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="5">${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="6">${escapeHtml(e.message)}</td></tr>`;
     }
   }
 

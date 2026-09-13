@@ -11,7 +11,23 @@ def _database_uri():
     url = os.environ.get("DATABASE_URL", "").strip()
     if not url:
         # Local fallback so the app runs out-of-the-box without Supabase configured.
-        return "sqlite:///" + os.path.join(BASE_DIR, "sri_balaji_local.db")
+        #
+        # IMPORTANT: on Vercel (and most serverless hosts) the deployed code
+        # directory is READ-ONLY — only /tmp is writable, and /tmp itself is
+        # wiped on every cold start. Pointing SQLite at BASE_DIR there causes
+        # every write (add/edit/delete slab, trash restore/purge, queries,
+        # announcements — basically every "admin" action) to fail with an
+        # "unable to open database file" error, or to silently reset on the
+        # next cold start. This is almost certainly why the Trash Bin and
+        # other staff-side actions look broken once deployed.
+        #
+        # Locally / on a normal long-running host (Option A in the README)
+        # BASE_DIR is writable and persists, so we keep using it there.
+        if os.environ.get("VERCEL"):
+            db_dir = "/tmp"
+        else:
+            db_dir = BASE_DIR
+        return "sqlite:///" + os.path.join(db_dir, "sri_balaji_local.db")
     # SQLAlchemy 2.x wants postgresql:// not postgres://
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
