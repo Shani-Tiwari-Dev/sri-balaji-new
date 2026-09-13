@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask_sqlalchemy import SQLAlchemy
 
@@ -10,6 +10,35 @@ TRASH_RETENTION_DAYS = 7
 
 def gen_id():
     return uuid.uuid4().hex
+
+
+def utcnow():
+    """Timezone-aware 'now' in UTC — used when comparing against columns that
+    may come back either naive (SQLite) or timezone-aware (Postgres)."""
+    return datetime.now(timezone.utc)
+
+
+def as_aware_utc(dt):
+    """
+    Normalize a datetime that may come back naive (SQLite) or timezone-aware
+    (Postgres/Supabase TIMESTAMPTZ columns) into a consistent aware UTC value.
+    Without this, subtracting a naive datetime.utcnow() from an aware value
+    read back from Postgres raises:
+      "can't subtract offset-naive and offset-aware datetimes"
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def iso_z(dt):
+    """Format a (possibly naive or aware) datetime as e.g. 2026-09-13T10:00:00Z."""
+    aware = as_aware_utc(dt)
+    if aware is None:
+        return None
+    return aware.replace(tzinfo=None).isoformat() + "Z"
 
 
 class Slab(db.Model):
@@ -55,7 +84,7 @@ class Slab(db.Model):
             "pricePerSqFt": self.price_per_sq_ft,
             "isSold": self.is_sold,
             "lotName": self.lot_name,
-            "createdAt": self.created_at.isoformat() + "Z" if self.created_at else None,
+            "createdAt": iso_z(self.created_at),
         }
 
 
@@ -71,13 +100,13 @@ class TrashItem(db.Model):
     def to_dict(self):
         remaining = None
         if self.expires_at:
-            remaining = max(0, (self.expires_at - datetime.utcnow()).days)
+            remaining = max(0, (as_aware_utc(self.expires_at) - utcnow()).days)
         return {
             "id": self.id,
             "slab": self.slab_snapshot,
-            "deletedAt": self.deleted_at.isoformat() + "Z" if self.deleted_at else None,
+            "deletedAt": iso_z(self.deleted_at),
             "deletedBy": self.deleted_by,
-            "expiresAt": self.expires_at.isoformat() + "Z" if self.expires_at else None,
+            "expiresAt": iso_z(self.expires_at),
             "remainingDays": remaining,
         }
 
@@ -114,7 +143,7 @@ class CustomerQuery(db.Model):
             "selectedSlabs": self.selected_slabs or [],
             "totalEstimatedCost": self.total_estimated_cost,
             "status": self.status,
-            "createdAt": self.created_at.isoformat() + "Z" if self.created_at else None,
+            "createdAt": iso_z(self.created_at),
             "notes": self.notes,
         }
 
