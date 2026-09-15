@@ -45,11 +45,11 @@ class Slab(db.Model):
     __tablename__ = "slabs"
 
     id = db.Column(db.String(36), primary_key=True, default=gen_id)
-    godown_id = db.Column(db.String(32), nullable=False)          # godown_1 / godown_2 / godown_3
+    godown_id = db.Column(db.String(32), nullable=False, index=True)  # godown_1 / godown_2 / godown_3
     godown_name = db.Column(db.String(120), nullable=False)
     block_number = db.Column(db.String(60))
     title = db.Column(db.String(200), nullable=False)
-    category = db.Column(db.String(60), nullable=False)           # Italian Marble / Granite / ...
+    category = db.Column(db.String(60), nullable=False, index=True)  # Italian Marble / Granite / ...
     image_url = db.Column(db.Text)
     length = db.Column(db.Float, nullable=False)
     width = db.Column(db.Float, nullable=False)
@@ -60,9 +60,9 @@ class Slab(db.Model):
     thickness_mm = db.Column(db.Float)
     finish = db.Column(db.String(40))                              # Polished/Honed/Leathered/Flamed/Lappato
     price_per_sq_ft = db.Column(db.Float, nullable=False, default=0)
-    is_sold = db.Column(db.Boolean, nullable=False, default=False)
+    is_sold = db.Column(db.Boolean, nullable=False, default=False, index=True)
     lot_name = db.Column(db.String(120))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     def to_dict(self):
         return {

@@ -72,8 +72,11 @@
     $("#roleLabel").textContent = state.session.role.replace(/_/g, " ").toUpperCase();
     $("#userLabel").textContent = state.session.name + (state.session.godownName ? ` · ${state.session.godownName}` : " · All Yards");
 
-    try { state.godowns = await api.getGodowns(); } catch (e) { state.godowns = []; }
-    try { state.meta = await api.getMeta(); } catch (e) { state.meta = { categories: [], finishes: [] }; }
+    // Fire together instead of one-after-the-other — same fix as the public
+    // catalog, cuts the wait before the dashboard is usable.
+    const [godownsRes, metaRes] = await Promise.allSettled([api.getGodowns(), api.getMeta()]);
+    state.godowns = godownsRes.status === "fulfilled" ? godownsRes.value : [];
+    state.meta = metaRes.status === "fulfilled" ? metaRes.value : { categories: [], finishes: [] };
 
     populateGodownSelects();
     populateCategorySelects();
@@ -243,6 +246,12 @@
   }
   function closeSlabForm() { $("#slabFormOverlay").classList.remove("open"); }
 
+  // Phone camera photos land here at 3-10MB straight out of the FileReader.
+  // Stored as-is, that full-size base64 blob rides along inside every
+  // /api/slabs response (catalog grid + admin table + cart), which is what
+  // was making the whole site feel slow. Downscaling + re-encoding on a
+  // canvas before it ever reaches state.uploadedImageData keeps each image
+  // in the ~100-250KB range without changing anything else about the flow.
   function handleSlabImageFile(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -253,10 +262,32 @@
     }
     const reader = new FileReader();
     reader.onload = () => {
-      state.uploadedImageData = reader.result;
-      const preview = $("#sfImagePreview");
-      preview.src = reader.result;
-      preview.style.display = "block";
+      const img = new Image();
+      img.onload = () => {
+        const MAX_DIM = 1400;
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width >= height) { height = Math.round(height * (MAX_DIM / width)); width = MAX_DIM; }
+          else { width = Math.round(width * (MAX_DIM / height)); height = MAX_DIM; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL("image/jpeg", 0.72);
+        state.uploadedImageData = compressed;
+        const preview = $("#sfImagePreview");
+        preview.src = compressed;
+        preview.style.display = "block";
+      };
+      img.onerror = () => {
+        // Fallback: still works even if canvas decoding fails for some reason.
+        state.uploadedImageData = reader.result;
+        const preview = $("#sfImagePreview");
+        preview.src = reader.result;
+        preview.style.display = "block";
+      };
+      img.src = reader.result;
     };
     reader.readAsDataURL(file);
   }

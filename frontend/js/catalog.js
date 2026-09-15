@@ -40,20 +40,26 @@
     $("#year").textContent = new Date().getFullYear();
     updateCartBadge();
 
-    try {
-      state.meta = await api.getMeta();
+    // These three don't depend on each other, so fire them together instead
+    // of waiting on each one in turn — on a cold serverless start each round
+    // trip can take a while, and doing them back-to-back was tripling that
+    // wait before the page even started loading stock.
+    const [metaRes, godownsRes, annsRes] = await Promise.allSettled([
+      api.getMeta(),
+      api.getGodowns(),
+      api.getAnnouncements(),
+    ]);
+    if (metaRes.status === "fulfilled") {
+      state.meta = metaRes.value;
       buildCategoryChips(state.meta.categories);
-    } catch (e) { /* categories fall back to "All" only */ }
-
-    try {
-      state.godowns = await api.getGodowns();
+    } // else categories fall back to "All" only
+    if (godownsRes.status === "fulfilled") {
+      state.godowns = godownsRes.value;
       buildGodownFilter(state.godowns);
-    } catch (e) { /* godown filter falls back to "All Yards" only */ }
-
-    try {
-      const anns = await api.getAnnouncements();
-      buildTicker(anns);
-    } catch (e) { /* ticker stays hidden */ }
+    } // else godown filter falls back to "All Yards" only
+    if (annsRes.status === "fulfilled") {
+      buildTicker(annsRes.value);
+    } // else ticker stays hidden
 
     bindFilterEvents();
     bindModalEvents();

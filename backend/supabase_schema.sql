@@ -27,6 +27,14 @@ create table if not exists public.slabs (
   created_at timestamptz not null default now()
 );
 
+-- Speeds up the /api/slabs filters (godown, category, in-stock) and the
+-- default "newest first" ordering. Safe to run any time, including on a
+-- table that already has data.
+create index if not exists idx_slabs_godown_id on public.slabs (godown_id);
+create index if not exists idx_slabs_category on public.slabs (category);
+create index if not exists idx_slabs_is_sold on public.slabs (is_sold);
+create index if not exists idx_slabs_created_at on public.slabs (created_at desc);
+
 create table if not exists public.trash_items (
   id text primary key default uuid_generate_v4()::text,
   slab_snapshot jsonb not null,
