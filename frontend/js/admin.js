@@ -18,7 +18,8 @@
     meta: null,
     editingSlabId: null,
     lastCalc: null,
-    uploadedImageData: null,
+    imageFile: null,      // downsized Blob from the file picker, ready to upload
+    imageFileName: "slab-photo.jpg",
   };
 
   // ---------------------------------------------------------------- auth
@@ -223,7 +224,7 @@
 
   function openSlabForm(slab) {
     state.editingSlabId = slab ? slab.id : null;
-    state.uploadedImageData = null;
+    state.imageFile = null;
     $("#slabFormTitle").textContent = slab ? "Edit Slab" : "Add Slab";
     $("#sfTitle").value = slab?.title || "";
     $("#sfCategory").value = slab?.category || state.meta.categories[0] || "";
@@ -236,7 +237,11 @@
     $("#sfPieces").value = slab?.pieces ?? 1;
     $("#sfThickness").value = slab?.thicknessMm ?? "";
     $("#sfRate").value = slab?.pricePerSqFt ?? "";
-    $("#sfImage").value = slab?.imageUrl || "";
+    // The URL field is now only a fallback for pasting an external image
+    // link — it no longer doubles as a place to store the uploaded photo's
+    // data, so it stays short and editable instead of silently holding a
+    // multi-megabyte string.
+    $("#sfImage").value = "";
     $("#sfImageFile").value = "";
     const preview = $("#sfImagePreview");
     if (slab?.imageUrl) { preview.src = slab.imageUrl; preview.style.display = "block"; }
@@ -246,12 +251,17 @@
   }
   function closeSlabForm() { $("#slabFormOverlay").classList.remove("open"); }
 
-  // Phone camera photos land here at 3-10MB straight out of the FileReader.
-  // Stored as-is, that full-size base64 blob rides along inside every
-  // /api/slabs response (catalog grid + admin table + cart), which is what
-  // was making the whole site feel slow. Downscaling + re-encoding on a
-  // canvas before it ever reaches state.uploadedImageData keeps each image
-  // in the ~100-250KB range without changing anything else about the flow.
+  // Phone camera photos land here at 3-10MB straight out of the file
+  // picker. We downscale + re-encode on a canvas so the upload itself stays
+  // fast, then keep the result as a real Blob (state.imageFile) that goes
+  // up to the server as a multipart file upload — see submitSlabForm and
+  // catalog/models.py Slab.image on the Django side. The photo is stored
+  // as an actual file there and the API only ever hands back a lightweight
+  // URL, instead of the old approach of embedding the whole image as base64
+  // text inside every slab record and every /api/slabs response, which is
+  // what made the catalog grid, admin table and cart feel slow — and made
+  // "just update the photo" fragile, since the entire image had to survive
+  // a round trip through a plain text field and JSON on every single save.
   function handleSlabImageFile(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -274,17 +284,20 @@
         canvas.width = width;
         canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        const compressed = canvas.toDataURL("image/jpeg", 0.72);
-        state.uploadedImageData = compressed;
-        const preview = $("#sfImagePreview");
-        preview.src = compressed;
-        preview.style.display = "block";
+        canvas.toBlob((blob) => {
+          state.imageFile = blob || file;
+          state.imageFileName = (file.name || "slab-photo.jpg").replace(/\.\w+$/, ".jpg");
+          const preview = $("#sfImagePreview");
+          preview.src = URL.createObjectURL(state.imageFile);
+          preview.style.display = "block";
+        }, "image/jpeg", 0.82);
       };
       img.onerror = () => {
         // Fallback: still works even if canvas decoding fails for some reason.
-        state.uploadedImageData = reader.result;
+        state.imageFile = file;
+        state.imageFileName = file.name || "slab-photo.jpg";
         const preview = $("#sfImagePreview");
-        preview.src = reader.result;
+        preview.src = URL.createObjectURL(file);
         preview.style.display = "block";
       };
       img.src = reader.result;
@@ -294,26 +307,37 @@
 
   async function submitSlabForm(e) {
     e.preventDefault();
-    const payload = {
+    const fields = {
       title: $("#sfTitle").value.trim(),
       category: $("#sfCategory").value,
       godownId: isManager() ? myGodownId() : $("#sfGodown").value,
       blockNumber: $("#sfBlock").value.trim(),
       finish: $("#sfFinish").value,
-      length: parseFloat($("#sfLength").value),
-      width: parseFloat($("#sfWidth").value),
+      length: $("#sfLength").value,
+      width: $("#sfWidth").value,
       unit: $("#sfUnit").value,
-      pieces: parseInt($("#sfPieces").value, 10) || 1,
-      thicknessMm: $("#sfThickness").value ? parseFloat($("#sfThickness").value) : null,
-      pricePerSqFt: parseFloat($("#sfRate").value),
-      imageUrl: state.uploadedImageData || $("#sfImage").value.trim() || `https://picsum.photos/seed/${Date.now()}/900/700`,
-      isSold: $("#sfSold").checked,
+      pieces: String(parseInt($("#sfPieces").value, 10) || 1),
+      thicknessMm: $("#sfThickness").value || "",
+      pricePerSqFt: $("#sfRate").value,
+      isSold: $("#sfSold").checked ? "true" : "false",
     };
+    const formData = new FormData();
+    Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
+    if (state.imageFile) {
+      formData.append("image", state.imageFile, state.imageFileName);
+    } else {
+      const pastedUrl = $("#sfImage").value.trim();
+      if (pastedUrl) formData.append("imageUrl", pastedUrl);
+      else if (!state.editingSlabId) formData.append("imageUrl", `https://picsum.photos/seed/${Date.now()}/900/700`);
+      // Editing an existing slab with neither a new file nor a pasted URL:
+      // send nothing image-related, so the current photo is left untouched.
+    }
+
     const btn = $("#slabFormSubmit");
     btn.disabled = true; btn.textContent = "Saving…";
     try {
-      if (state.editingSlabId) await api.updateSlab(state.editingSlabId, payload);
-      else await api.createSlab(payload);
+      if (state.editingSlabId) await api.updateSlab(state.editingSlabId, formData);
+      else await api.createSlab(formData);
       showToast("Slab saved");
       closeSlabForm();
       loadStock();

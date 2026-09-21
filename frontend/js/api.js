@@ -1,5 +1,5 @@
 /* Thin fetch wrapper shared by the customer catalog and staff dashboard. */
-const API_BASE = ""; // same-origin: Flask serves the frontend + /api/*
+const API_BASE = ""; // same-origin: Django serves the frontend + /api/*
 
 function authToken() {
   return localStorage.getItem("sbg_staff_token") || "";
@@ -7,7 +7,12 @@ function authToken() {
 
 async function apiRequest(path, { method = "GET", body, auth = false, isCsv = false } = {}) {
   const headers = {};
-  if (body) headers["Content-Type"] = "application/json";
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  // Real photo uploads go through multipart/form-data (see admin.js
+  // buildSlabFormData); everything else stays plain JSON. Never set
+  // Content-Type ourselves for FormData — the browser needs to add its own
+  // multipart boundary, and overriding it breaks the upload.
+  if (body && !isFormData) headers["Content-Type"] = "application/json";
   if (auth) {
     const token = authToken();
     if (token) headers["Authorization"] = "Bearer " + token;
@@ -15,7 +20,7 @@ async function apiRequest(path, { method = "GET", body, auth = false, isCsv = fa
   const res = await fetch(API_BASE + path, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
   });
 
   if (res.status === 401 && auth) {
