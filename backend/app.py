@@ -31,6 +31,36 @@ def create_app():
         except Exception as exc:  # pragma: no cover - don't crash cold start on a transient DB hiccup
             app.logger.warning("db.create_all() failed at startup: %s", exc)
 
+        # create_all() does NOT add new columns/indexes to a table that
+        # already exists — so adding a column to a model (like
+        # Slab.thumbnail_url) does nothing to an already-deployed Supabase
+        # table on its own, and every query touching that column then fails
+        # with "column does not exist", which took the whole admin panel and
+        # catalog down. This checks what's actually on the live table and
+        # adds anything missing, so a code deploy alone is always enough —
+        # no manual SQL step to remember or forget.
+        try:
+            from sqlalchemy import inspect as _sa_inspect, text as _sa_text
+            insp = _sa_inspect(db.engine)
+            if insp.has_table("slabs"):
+                existing_cols = {c["name"] for c in insp.get_columns("slabs")}
+                existing_idx = {i["name"] for i in insp.get_indexes("slabs")}
+                with db.engine.begin() as conn:
+                    if "thumbnail_url" not in existing_cols:
+                        conn.execute(_sa_text("ALTER TABLE slabs ADD COLUMN thumbnail_url TEXT"))
+                        conn.execute(_sa_text("UPDATE slabs SET thumbnail_url = image_url WHERE thumbnail_url IS NULL"))
+                    index_cols = {
+                        "idx_slabs_godown_id": "godown_id",
+                        "idx_slabs_category": "category",
+                        "idx_slabs_is_sold": "is_sold",
+                        "idx_slabs_created_at": "created_at",
+                    }
+                    for idx_name, col in index_cols.items():
+                        if idx_name not in existing_idx:
+                            conn.execute(_sa_text(f"CREATE INDEX {idx_name} ON slabs ({col})"))
+        except Exception as exc:  # pragma: no cover - don't crash cold start if auto-migration can't run
+            app.logger.warning("auto-migration failed at startup: %s", exc)
+
     # Without this, an unhandled exception returns Flask's default HTML
     # error page. The frontend's fetch wrapper expects JSON and falls back
     # to a generic "Request failed (500)" with no detail. This returns the
