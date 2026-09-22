@@ -20,6 +20,7 @@
     lastCalc: null,
     uploadedImageData: null,
     uploadedThumbnailData: null,
+    imageProcessing: null,
   };
 
   // ---------------------------------------------------------------- auth
@@ -227,6 +228,7 @@
     state.editingSlabId = editId || null;
     state.uploadedImageData = null;
     state.uploadedThumbnailData = null;
+    state.imageProcessing = null;
 
     // The stock table only carries the small list-view thumbnail per row
     // (kept deliberately small so the table itself loads fast) — so when
@@ -294,6 +296,11 @@
     return dataUrl;
   }
 
+  // Resizing/compressing a photo (especially generating two sizes) takes a
+  // real moment — if staff hit Save before this finished, the form used to
+  // submit with no image ready yet and silently fall back to a random
+  // placeholder photo. state.imageProcessing lets submitSlabForm wait for
+  // this to actually finish instead of racing it.
   function handleSlabImageFile(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -303,32 +310,61 @@
       return;
     }
     const preview = $("#sfImagePreview");
+    const btn = $("#slabFormSubmit");
     showToast("Processing image…");
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        state.uploadedImageData = canvasToSizedJpeg(img, 1280, 500 * 1024);
-        state.uploadedThumbnailData = canvasToSizedJpeg(img, 360, 40 * 1024);
-        preview.src = state.uploadedImageData;
-        preview.style.display = "block";
-        showToast("Image ready");
+    btn.disabled = true;
+    const prevBtnText = btn.textContent;
+    btn.textContent = "Processing image…";
+    state.imageProcessing = new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          state.uploadedImageData = canvasToSizedJpeg(img, 1280, 500 * 1024);
+          state.uploadedThumbnailData = canvasToSizedJpeg(img, 360, 40 * 1024);
+          preview.src = state.uploadedImageData;
+          preview.style.display = "block";
+          showToast("Image ready");
+          btn.disabled = false; btn.textContent = prevBtnText;
+          resolve();
+        };
+        img.onerror = () => {
+          // Fallback: still works even if canvas decoding fails for some reason.
+          state.uploadedImageData = reader.result;
+          state.uploadedThumbnailData = reader.result;
+          preview.src = reader.result;
+          preview.style.display = "block";
+          btn.disabled = false; btn.textContent = prevBtnText;
+          resolve();
+        };
+        img.src = reader.result;
       };
-      img.onerror = () => {
-        // Fallback: still works even if canvas decoding fails for some reason.
-        state.uploadedImageData = reader.result;
-        state.uploadedThumbnailData = reader.result;
-        preview.src = reader.result;
-        preview.style.display = "block";
+      reader.onerror = () => {
+        showToast("Couldn't read that image file");
+        btn.disabled = false; btn.textContent = prevBtnText;
+        resolve();
       };
-      img.src = reader.result;
-    };
-    reader.onerror = () => showToast("Couldn't read that image file");
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    });
   }
+
+  // No upload and no manual URL: previously fell back to a random photo
+  // from picsum.photos, which is what was showing up as "some old/generic
+  // photo" on the customer page instead of the real product. A plain
+  // in-page placeholder (no external service, nothing misleading) instead.
+  const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="700">' +
+    '<rect width="100%" height="100%" fill="#e9e4dd"/>' +
+    '<text x="50%" y="50%" font-family="sans-serif" font-size="36" fill="#9a9186" text-anchor="middle" dominant-baseline="middle">No Photo</text>' +
+    '</svg>'
+  );
 
   async function submitSlabForm(e) {
     e.preventDefault();
+    if (state.imageProcessing) {
+      showToast("Finishing image processing…");
+      await state.imageProcessing;
+    }
     const payload = {
       title: $("#sfTitle").value.trim(),
       category: $("#sfCategory").value,
@@ -341,7 +377,7 @@
       pieces: parseInt($("#sfPieces").value, 10) || 1,
       thicknessMm: $("#sfThickness").value ? parseFloat($("#sfThickness").value) : null,
       pricePerSqFt: parseFloat($("#sfRate").value),
-      imageUrl: state.uploadedImageData || $("#sfImage").value.trim() || `https://picsum.photos/seed/${Date.now()}/900/700`,
+      imageUrl: state.uploadedImageData || $("#sfImage").value.trim() || NO_IMAGE_PLACEHOLDER,
       isSold: $("#sfSold").checked,
     };
     if (state.uploadedThumbnailData) payload.thumbnailUrl = state.uploadedThumbnailData;
