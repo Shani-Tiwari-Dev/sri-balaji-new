@@ -51,6 +51,7 @@ class Slab(db.Model):
     title = db.Column(db.String(200), nullable=False)
     category = db.Column(db.String(60), nullable=False, index=True)  # Italian Marble / Granite / ...
     image_url = db.Column(db.Text)
+    thumbnail_url = db.Column(db.Text)  # small version used in grid/table lists; image_url (full) used in the detail modal
     length = db.Column(db.Float, nullable=False)
     width = db.Column(db.Float, nullable=False)
     unit = db.Column(db.String(20), nullable=False, default="feet")  # meters|centimeters|feet|inches
@@ -64,7 +65,14 @@ class Slab(db.Model):
     lot_name = db.Column(db.String(120))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
-    def to_dict(self):
+    def to_dict(self, list_view=False):
+        # list_view=True is used for the /api/slabs list (catalog grid + admin
+        # table): every slab's image used to ride along as a full-size base64
+        # blob on every single list load, which is what made the site heavier
+        # and heavier as stock grew, and made big uploads fail outright. The
+        # list now gets the small thumbnail; the detail modal (single-slab
+        # fetch) still gets the full image via imageUrl below.
+        image_for_list = self.thumbnail_url or self.image_url
         return {
             "id": self.id,
             "godownId": self.godown_id,
@@ -72,7 +80,7 @@ class Slab(db.Model):
             "blockNumber": self.block_number,
             "title": self.title,
             "category": self.category,
-            "imageUrl": self.image_url,
+            "imageUrl": image_for_list if list_view else self.image_url,
             "length": self.length,
             "width": self.width,
             "unit": self.unit,

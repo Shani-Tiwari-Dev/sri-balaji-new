@@ -18,8 +18,8 @@
     meta: null,
     editingSlabId: null,
     lastCalc: null,
-    imageFile: null,      // downsized Blob from the file picker, ready to upload
-    imageFileName: "slab-photo.jpg",
+    uploadedImageData: null,
+    uploadedThumbnailData: null,
   };
 
   // ---------------------------------------------------------------- auth
@@ -222,10 +222,27 @@
     } catch (e) { showToast(e.message); }
   }
 
-  function openSlabForm(slab) {
-    state.editingSlabId = slab ? slab.id : null;
-    state.imageFile = null;
-    $("#slabFormTitle").textContent = slab ? "Edit Slab" : "Add Slab";
+  async function openSlabForm(slab) {
+    const editId = slab && slab.id;
+    state.editingSlabId = editId || null;
+    state.uploadedImageData = null;
+    state.uploadedThumbnailData = null;
+
+    // The stock table only carries the small list-view thumbnail per row
+    // (kept deliberately small so the table itself loads fast) — so when
+    // editing an existing slab, fetch the full record here to get the real
+    // full-size image instead of accidentally overwriting it with the
+    // thumbnail on save.
+    if (editId) {
+      try {
+        slab = await api.getSlab(editId);
+      } catch (e) {
+        showToast("Couldn't load slab details");
+        return;
+      }
+    }
+
+    $("#slabFormTitle").textContent = editId ? "Edit Slab" : "Add Slab";
     $("#sfTitle").value = slab?.title || "";
     $("#sfCategory").value = slab?.category || state.meta.categories[0] || "";
     if (!isManager()) $("#sfGodown").value = slab?.godownId || state.godowns[0]?.id || "";
@@ -237,11 +254,7 @@
     $("#sfPieces").value = slab?.pieces ?? 1;
     $("#sfThickness").value = slab?.thicknessMm ?? "";
     $("#sfRate").value = slab?.pricePerSqFt ?? "";
-    // The URL field is now only a fallback for pasting an external image
-    // link — it no longer doubles as a place to store the uploaded photo's
-    // data, so it stays short and editable instead of silently holding a
-    // multi-megabyte string.
-    $("#sfImage").value = "";
+    $("#sfImage").value = slab?.imageUrl || "";
     $("#sfImageFile").value = "";
     const preview = $("#sfImagePreview");
     if (slab?.imageUrl) { preview.src = slab.imageUrl; preview.style.display = "block"; }
@@ -251,17 +264,36 @@
   }
   function closeSlabForm() { $("#slabFormOverlay").classList.remove("open"); }
 
-  // Phone camera photos land here at 3-10MB straight out of the file
-  // picker. We downscale + re-encode on a canvas so the upload itself stays
-  // fast, then keep the result as a real Blob (state.imageFile) that goes
-  // up to the server as a multipart file upload — see submitSlabForm and
-  // catalog/models.py Slab.image on the Django side. The photo is stored
-  // as an actual file there and the API only ever hands back a lightweight
-  // URL, instead of the old approach of embedding the whole image as base64
-  // text inside every slab record and every /api/slabs response, which is
-  // what made the catalog grid, admin table and cart feel slow — and made
-  // "just update the photo" fragile, since the entire image had to survive
-  // a round trip through a plain text field and JSON on every single save.
+  // Phone camera photos land here at 3-10MB straight out of the FileReader.
+  // Two things used to break because of that: (1) the full-size base64 blob
+  // rode along inside every /api/slabs list response, making the whole site
+  // heavier as stock grew, and (2) a single upload could itself be big
+  // enough to get rejected by the hosting platform's request-size limit,
+  // which looked like "upload isn't working". Fix: resize+compress on a
+  // canvas, and produce a small thumbnail (for lists) separately from a
+  // moderate full image (for the detail view) — with size checked and
+  // quality stepped down automatically if a photo is unusually detailed.
+  function canvasToSizedJpeg(img, maxDim, targetBytes) {
+    let { width, height } = img;
+    if (width > maxDim || height > maxDim) {
+      if (width >= height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+      else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+    let quality = 0.75;
+    let dataUrl = canvas.toDataURL("image/jpeg", quality);
+    // Base64 runs ~33% bigger than raw bytes; step quality down until the
+    // encoded result is comfortably within targetBytes, or we hit a floor.
+    while (dataUrl.length * 0.75 > targetBytes && quality > 0.35) {
+      quality -= 0.1;
+      dataUrl = canvas.toDataURL("image/jpeg", quality);
+    }
+    return dataUrl;
+  }
+
   function handleSlabImageFile(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -270,74 +302,54 @@
       e.target.value = "";
       return;
     }
+    const preview = $("#sfImagePreview");
+    showToast("Processing image…");
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const MAX_DIM = 1400;
-        let { width, height } = img;
-        if (width > MAX_DIM || height > MAX_DIM) {
-          if (width >= height) { height = Math.round(height * (MAX_DIM / width)); width = MAX_DIM; }
-          else { width = Math.round(width * (MAX_DIM / height)); height = MAX_DIM; }
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          state.imageFile = blob || file;
-          state.imageFileName = (file.name || "slab-photo.jpg").replace(/\.\w+$/, ".jpg");
-          const preview = $("#sfImagePreview");
-          preview.src = URL.createObjectURL(state.imageFile);
-          preview.style.display = "block";
-        }, "image/jpeg", 0.82);
+        state.uploadedImageData = canvasToSizedJpeg(img, 1280, 500 * 1024);
+        state.uploadedThumbnailData = canvasToSizedJpeg(img, 360, 40 * 1024);
+        preview.src = state.uploadedImageData;
+        preview.style.display = "block";
+        showToast("Image ready");
       };
       img.onerror = () => {
         // Fallback: still works even if canvas decoding fails for some reason.
-        state.imageFile = file;
-        state.imageFileName = file.name || "slab-photo.jpg";
-        const preview = $("#sfImagePreview");
-        preview.src = URL.createObjectURL(file);
+        state.uploadedImageData = reader.result;
+        state.uploadedThumbnailData = reader.result;
+        preview.src = reader.result;
         preview.style.display = "block";
       };
       img.src = reader.result;
     };
+    reader.onerror = () => showToast("Couldn't read that image file");
     reader.readAsDataURL(file);
   }
 
   async function submitSlabForm(e) {
     e.preventDefault();
-    const fields = {
+    const payload = {
       title: $("#sfTitle").value.trim(),
       category: $("#sfCategory").value,
       godownId: isManager() ? myGodownId() : $("#sfGodown").value,
       blockNumber: $("#sfBlock").value.trim(),
       finish: $("#sfFinish").value,
-      length: $("#sfLength").value,
-      width: $("#sfWidth").value,
+      length: parseFloat($("#sfLength").value),
+      width: parseFloat($("#sfWidth").value),
       unit: $("#sfUnit").value,
-      pieces: String(parseInt($("#sfPieces").value, 10) || 1),
-      thicknessMm: $("#sfThickness").value || "",
-      pricePerSqFt: $("#sfRate").value,
-      isSold: $("#sfSold").checked ? "true" : "false",
+      pieces: parseInt($("#sfPieces").value, 10) || 1,
+      thicknessMm: $("#sfThickness").value ? parseFloat($("#sfThickness").value) : null,
+      pricePerSqFt: parseFloat($("#sfRate").value),
+      imageUrl: state.uploadedImageData || $("#sfImage").value.trim() || `https://picsum.photos/seed/${Date.now()}/900/700`,
+      isSold: $("#sfSold").checked,
     };
-    const formData = new FormData();
-    Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
-    if (state.imageFile) {
-      formData.append("image", state.imageFile, state.imageFileName);
-    } else {
-      const pastedUrl = $("#sfImage").value.trim();
-      if (pastedUrl) formData.append("imageUrl", pastedUrl);
-      else if (!state.editingSlabId) formData.append("imageUrl", `https://picsum.photos/seed/${Date.now()}/900/700`);
-      // Editing an existing slab with neither a new file nor a pasted URL:
-      // send nothing image-related, so the current photo is left untouched.
-    }
-
+    if (state.uploadedThumbnailData) payload.thumbnailUrl = state.uploadedThumbnailData;
     const btn = $("#slabFormSubmit");
     btn.disabled = true; btn.textContent = "Saving…";
     try {
-      if (state.editingSlabId) await api.updateSlab(state.editingSlabId, formData);
-      else await api.createSlab(formData);
+      if (state.editingSlabId) await api.updateSlab(state.editingSlabId, payload);
+      else await api.createSlab(payload);
       showToast("Slab saved");
       closeSlabForm();
       loadStock();

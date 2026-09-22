@@ -42,6 +42,8 @@ def create_app():
         code = getattr(err, "code", 500)
         if not isinstance(code, int):
             code = 500
+        if code == 413:
+            return jsonify({"error": "That image is too large even after compression. Please try a smaller photo."}), 413
         return jsonify({"error": str(err) or err.__class__.__name__}), code
 
     # ---------------------------------------------------------------
@@ -128,7 +130,7 @@ def create_app():
             q = q.filter(db.or_(Slab.title.ilike(like), Slab.block_number.ilike(like), Slab.lot_name.ilike(like)))
 
         slabs = q.order_by(Slab.created_at.desc()).all()
-        return jsonify([s.to_dict() for s in slabs])
+        return jsonify([s.to_dict(list_view=True) for s in slabs])
 
     @app.get("/api/slabs/<slab_id>")
     def get_slab(slab_id):
@@ -171,6 +173,7 @@ def create_app():
             price_per_sq_ft=payload.get("pricePerSqFt", 0),
             is_sold=payload.get("isSold", False),
             lot_name=payload.get("lotName"),
+            thumbnail_url=payload.get("thumbnailUrl") or payload.get("imageUrl"),
         )
         db.session.add(slab)
         db.session.commit()
@@ -188,6 +191,7 @@ def create_app():
         payload = request.get_json(silent=True) or {}
         for field, attr in [
             ("title", "title"), ("category", "category"), ("imageUrl", "image_url"),
+            ("thumbnailUrl", "thumbnail_url"),
             ("blockNumber", "block_number"), ("length", "length"), ("width", "width"),
             ("unit", "unit"), ("pieces", "pieces"), ("thicknessMm", "thickness_mm"),
             ("finish", "finish"), ("pricePerSqFt", "price_per_sq_ft"),
@@ -195,6 +199,10 @@ def create_app():
         ]:
             if field in payload:
                 setattr(slab, attr, payload[field])
+        # Keep the list thumbnail in sync if a new full image was set without
+        # an explicit thumbnail (e.g. someone pastes a plain image URL).
+        if "imageUrl" in payload and "thumbnailUrl" not in payload:
+            slab.thumbnail_url = payload["imageUrl"]
 
         if any(k in payload for k in ("length", "width", "unit", "pieces")):
             area = calculate_slab_area(slab.length, slab.width, slab.unit, slab.pieces)

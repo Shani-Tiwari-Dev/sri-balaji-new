@@ -50,6 +50,12 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
     JWT_EXPIRY_HOURS = int(os.environ.get("JWT_EXPIRY_HOURS", "12"))
 
+    # Hard ceiling on request body size. Compressed slab-image uploads should
+    # land well under this; if a request still exceeds it, Flask now returns
+    # a clear "image too large" JSON error instead of the request just
+    # hanging or failing with no explanation.
+    MAX_CONTENT_LENGTH = int(os.environ.get("MAX_CONTENT_LENGTH", 8 * 1024 * 1024))
+
     STAFF_PASSWORDS = [
         p.strip() for p in os.environ.get(
             "STAFF_PASSWORDS",

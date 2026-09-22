@@ -13,6 +13,7 @@ create table if not exists public.slabs (
   title text not null,
   category text not null,
   image_url text,
+  thumbnail_url text,
   length numeric not null,
   width numeric not null,
   unit text not null default 'feet',
@@ -26,6 +27,13 @@ create table if not exists public.slabs (
   lot_name text,
   created_at timestamptz not null default now()
 );
+
+-- If this table already existed before thumbnail_url was added, this brings
+-- it up to date without touching any existing rows' data. Existing slabs
+-- get thumbnail_url = image_url as a starting point (still correct, just
+-- not yet re-compressed) until they're next edited from the admin panel.
+alter table public.slabs add column if not exists thumbnail_url text;
+update public.slabs set thumbnail_url = image_url where thumbnail_url is null;
 
 -- Speeds up the /api/slabs filters (godown, category, in-stock) and the
 -- default "newest first" ordering. Safe to run any time, including on a

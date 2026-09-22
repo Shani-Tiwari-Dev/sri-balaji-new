@@ -2,17 +2,17 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend_django/sbg/wsgi.py",
+      "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "includeFiles": ["frontend/**", "backend_django/**"]
+        "includeFiles": ["frontend/**", "backend/**"]
       }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/backend_django/sbg/wsgi.py"
+      "dest": "/api/index.py"
     }
   ]
 }
