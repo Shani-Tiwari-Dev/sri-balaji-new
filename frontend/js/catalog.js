@@ -14,6 +14,17 @@
   const grid = $("#grid");
   const toastEl = $("#toast");
 
+  // Same idea as the admin panel: if an image ever fails to load for any
+  // reason, show this instead of a broken-image icon — never a blank/broken
+  // tile on the customer-facing site.
+  const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="700">' +
+    '<rect width="100%" height="100%" fill="#e9e4dd"/>' +
+    '<text x="50%" y="50%" font-family="sans-serif" font-size="36" fill="#9a9186" text-anchor="middle" dominant-baseline="middle">No Photo</text>' +
+    '</svg>'
+  );
+  const imgFallback = `onerror="this.onerror=null;this.src='${NO_IMAGE_PLACEHOLDER}'"`;
+
   function showToast(msg) {
     toastEl.textContent = msg;
     toastEl.classList.add("show");
@@ -40,14 +51,22 @@
     $("#year").textContent = new Date().getFullYear();
     updateCartBadge();
 
-    // These three don't depend on each other, so fire them together instead
-    // of waiting on each one in turn — on a cold serverless start each round
-    // trip can take a while, and doing them back-to-back was tripling that
-    // wait before the page even started loading stock.
+    // loadSlabs() (the actual product grid + images) doesn't depend on meta,
+    // godowns, or announcements at all — it was still waiting for all three
+    // of those to finish first before it even started, which is exactly why
+    // the grid/images showed up late after opening the site. Firing all
+    // four together means the grid starts loading immediately instead of
+    // queueing behind unrelated data.
+    grid.setAttribute("aria-busy", "true");
+    bindFilterEvents();
+    bindModalEvents();
+    bindDrawerEvents();
+
     const [metaRes, godownsRes, annsRes] = await Promise.allSettled([
       api.getMeta(),
       api.getGodowns(),
       api.getAnnouncements(),
+      loadSlabs(),
     ]);
     if (metaRes.status === "fulfilled") {
       state.meta = metaRes.value;
@@ -60,11 +79,6 @@
     if (annsRes.status === "fulfilled") {
       buildTicker(annsRes.value);
     } // else ticker stays hidden
-
-    bindFilterEvents();
-    bindModalEvents();
-    bindDrawerEvents();
-    await loadSlabs();
   }
 
   function buildCategoryChips(categories) {
@@ -155,7 +169,7 @@
     return `
       <div class="tile ${s.isSold ? "is-sold" : ""}" data-id="${s.id}">
         ${s.isSold ? '<span class="tile-sold-flag">Sold</span>' : ""}
-        <img src="${s.imageUrl}" alt="${escapeHtml(s.title)}" loading="lazy" />
+        <img src="${s.imageUrl}" alt="${escapeHtml(s.title)}" ${imgFallback} />
         <div class="tile-stamp">
           <span class="tile-stamp__tag"><b>${escapeHtml(s.title)}</b>${escapeHtml(s.blockNumber || "")} · ${escapeHtml(s.godownName)}</span>
           <span class="tile-stamp__rate">${formatCurrencyINR(s.pricePerSqFt)}/sqft</span>
@@ -197,7 +211,7 @@
   function modalHtml(s) {
     const dims = `${s.length} × ${s.width} ${s.unit}`;
     return `
-      <div class="modal-media"><img src="${s.imageUrl}" alt="${escapeHtml(s.title)}" /></div>
+      <div class="modal-media"><img src="${s.imageUrl}" alt="${escapeHtml(s.title)}" ${imgFallback} /></div>
       <div class="modal-body">
         <div class="modal-eyebrow">${escapeHtml(s.category)} · ${escapeHtml(s.finish || "")}</div>
         <h2 class="modal-title">${escapeHtml(s.title)}</h2>
@@ -263,7 +277,7 @@
 
     body.innerHTML = state.cart.map((s) => `
       <div class="cart-line">
-        <img src="${s.imageUrl}" alt="" />
+        <img src="${s.imageUrl}" alt="" ${imgFallback} />
         <div class="meta">
           <div class="t">${escapeHtml(s.title)}</div>
           <div class="s">${s.totalSqFt} sq.ft · ${formatCurrencyINR(s.pricePerSqFt)}/sqft</div>

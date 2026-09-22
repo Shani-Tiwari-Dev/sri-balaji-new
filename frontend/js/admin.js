@@ -190,7 +190,7 @@
   function stockRowHtml(s) {
     return `
       <tr>
-        <td><img class="row-thumb" src="${s.imageUrl}" alt="" /></td>
+        <td><img class="row-thumb" src="${s.imageUrl}" alt="" onerror="this.onerror=null;this.src='${NO_IMAGE_PLACEHOLDER}'" /></td>
         <td>${escapeHtml(s.title)}<br><span class="mono" style="color:var(--ink-soft);font-size:11px;">${escapeHtml(s.blockNumber || "")}</span></td>
         <td>${escapeHtml(s.category)}</td>
         <td>${escapeHtml(s.godownName)}</td>
@@ -506,7 +506,7 @@
       }
       tbody.innerHTML = items.map((t) => `
         <tr>
-          <td><img class="row-thumb" src="${t.slab.imageUrl || ""}" alt="" /></td>
+          <td><img class="row-thumb" src="${t.slab.imageUrl || NO_IMAGE_PLACEHOLDER}" alt="" onerror="this.onerror=null;this.src='${NO_IMAGE_PLACEHOLDER}'" /></td>
           <td>${escapeHtml(t.slab.title)}</td>
           <td>${escapeHtml(t.slab.godownName)}</td>
           <td>${escapeHtml(t.deletedBy || "—")}</td>
