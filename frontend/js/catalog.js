@@ -257,6 +257,7 @@
 
   function bindDrawerEvents() {
     $("#cartBtn").addEventListener("click", openDrawer);
+    $("#queryBtn").addEventListener("click", openGeneralQuery);
     $("#closeDrawer").addEventListener("click", closeDrawer);
     $("#drawerOverlay").addEventListener("click", (e) => { if (e.target.id === "drawerOverlay") closeDrawer(); });
   }
@@ -356,6 +357,55 @@
     }
   }
 
+  // General "Ask a Query" — a quick question that isn't tied to any slab
+  // selection. Reuses the same enquiry drawer and the same /api/queries
+  // endpoint/table as the cart checkout flow, so it shows up in the admin
+  // Queries tab exactly like a catalog enquiry does — just with no slabs
+  // attached.
+  function openGeneralQuery() {
+    renderGeneralQueryForm();
+    $("#drawerOverlay").classList.add("open");
+  }
+
+  function renderGeneralQueryForm() {
+    $("#drawerTitle").textContent = "Ask a Query";
+    const body = $("#drawerBody");
+    const foot = $("#drawerFoot");
+    body.innerHTML = `
+      <form id="generalQueryForm">
+        <div class="form-grid">
+          <div class="field full"><label for="gqName">Full Name</label><input id="gqName" required /></div>
+          <div class="field full"><label for="gqMobile">Mobile Number</label><input id="gqMobile" type="tel" required /></div>
+          <div class="field full"><label for="gqMessage">Your Question</label><textarea id="gqMessage" placeholder="Ask us anything — stock, pricing, delivery…" required></textarea></div>
+        </div>
+        <p class="form-note">We'll get back to you shortly. You can also send this straight to WhatsApp.</p>
+      </form>`;
+    foot.innerHTML = `<button class="btn btn-block" id="submitGeneralQuery" form="generalQueryForm" type="submit">Send Query</button>`;
+    $("#generalQueryForm").addEventListener("submit", handleGeneralQuerySubmit);
+  }
+
+  async function handleGeneralQuerySubmit(e) {
+    e.preventDefault();
+    const payload = {
+      clientName: $("#gqName").value.trim(),
+      mobileNumber: $("#gqMobile").value.trim(),
+      requirement: $("#gqMessage").value.trim(),
+      selectedSlabs: [],
+    };
+    if (!payload.clientName || !payload.mobileNumber) { showToast("Name and mobile number are required"); return; }
+
+    const btn = $("#submitGeneralQuery");
+    btn.disabled = true; btn.textContent = "Sending…";
+    try {
+      const result = await api.submitQuery(payload);
+      state.lastSubmittedOrder = { ...payload, orderNumber: result.orderNumber };
+      renderConfirmation(result);
+    } catch (err) {
+      showToast(err.message);
+      btn.disabled = false; btn.textContent = "Send Query";
+    }
+  }
+
   function renderConfirmation(result) {
     const body = $("#drawerBody");
     const foot = $("#drawerFoot");
@@ -363,7 +413,7 @@
       <div class="confirmation">
         <svg class="ok-mark" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="22" stroke="#0a0a0a" stroke-width="1.6"/><path d="M15 24l6 6 12-13" stroke="#0a0a0a" stroke-width="2" fill="none"/></svg>
         <h3>Enquiry received</h3>
-        <p>We'll reach out shortly with a quote.</p>
+        <p>We'll get back to you shortly.</p>
         <p class="order-no">Order ${escapeHtml(result.orderNumber || "")}</p>
       </div>`;
     foot.innerHTML = `
